@@ -58,6 +58,10 @@ predict_rf <- predict(fit_rf, validate)
 cm <- confusionMatrix(predict_rf, validate$classe)
 print(cm)
 out_of_sample_rate <- 1 - cm$overall["Accuracy"]
+
+# Predict the exercise quality for the 20 submission samples
+submission_predictions <- predict(fit_rf, testing)
+print(submission_predictions)
 ```
 
 We estimate the out-of-sample error rate to be `r round(out_of_sample_rate*100, 2)` percent.
