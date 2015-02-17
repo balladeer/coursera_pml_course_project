@@ -1,0 +1,66 @@
+---
+title: "Predicting Exercise Quality"
+date: "Monday, February 16, 2015"
+output: html_document
+---
+
+### Introduction
+
+For this project, we are going to use the Weight Lifting Exercise data set from Groupware's Human Activity Recognition dataset.  The dataset contains on-body measurments from several health professionals as they performed dumbell exercises in each of five different fashions, e.g. 'lifting the dumbell only halfway' or ' throwing the hips to the front'.  From this data, we attempt to build an estimator that can predict, given a similar set of on-body measurments, the quality of the exercise that the person is performing.
+
+### Exploratory Analysis
+First, set the seed to an arbitrary value (to make the calculations reproducible), and then we load the dataset.  We will split the 'pml-training.csv' file into training and validation data sets, while we reserve the 'pml-testing.csv' data set for final prediction.
+```{r, warning=FALSE, results='hide', message=FALSE}
+library(caret)
+library(randomForest)
+set.seed(10001)  # Arbitrary seed
+
+# Load the data
+train_and_validate <- read.csv("data/pml-training.csv")
+testing <- read.csv("data/pml-testing.csv")
+```
+Looking through the names of the columns in the data, we see that the columns are largely divided into three categories:
+
+* User / bookkeeping information (e.g. `user_name`, `raw_timestamp_part_1`)
+* Fundamental body measurements (e.g. `roll_belt`, `pitch_forearm`, and `yaw_arm`)
+* Secondary body measurements (e.g. `accel_dumbbell_y`, `min_pitch_forearm`, etc)
+
+Many of the secondary body measurements are missing large sections of data, and the user information is unlikely to be relevant to any future users that we are trying to predict.  Thus, we will use only the fundamental body measurements for our initial estimator creation.
+
+```{r, results='hide'}
+# Define the columns that we need for our estimator.  'classe' is the column we are trying to predict
+estimator_columns <- c("roll_belt", "pitch_belt", "yaw_belt",
+                       "roll_dumbbell", "pitch_dumbbell", "yaw_dumbbell",
+                       "roll_forearm","pitch_forearm", "yaw_forearm",
+                       "roll_arm", "pitch_arm", "yaw_arm",
+                       "classe")
+train_and_validate <- train_and_validate[, estimator_columns]
+
+# Create a data partition with which to split the training data.
+in_train <- createDataPartition(y=train_and_validate$classe,
+                                p=0.75, list=FALSE)
+
+training <- train_and_validate[in_train,]  # Used for fitting our estimator
+validate <- train_and_validate[-in_train,]  # Saved for out-of-sample error estimation
+```
+### Training the Estimator
+```{r, cache=TRUE, results='hide', warning=FALSE}
+# Random forest - create and train using cross validation on the training data set
+num_folds <- 5
+fit_rf <- train(classe ~ ., data=training, method="rf", trControl=trainControl(method="cv", number=num_folds))
+```
+
+### Evaluating the Estimator
+```{r}
+# Calculate confusion matrix, estimate out-of-sample error rate by predicting on
+# the validation set, which the estimator has not experienced yet.
+predict_rf <- predict(fit_rf, validate)
+cm <- confusionMatrix(predict_rf, validate$classe)
+print(cm)
+out_of_sample_rate <- 1 - cm$overall["Accuracy"]
+```
+
+We estimate the out-of-sample error rate to be `r round(out_of_sample_rate*100, 2)` percent.
+
+### Conclusion
+Using a random forest estimator trained on the fundamental body measurments appears to predict exercise quality quite well.  Using only 12 of the original 160 columns in the data set, we can construct an estimator capable of extraordinary accuracy.
