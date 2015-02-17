@@ -1,6 +1,7 @@
 # Data folder
 data/*
 output/*
+index_cache/*
 
 # History files
 .Rhistory
